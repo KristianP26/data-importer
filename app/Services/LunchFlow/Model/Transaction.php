@@ -38,6 +38,9 @@ class Transaction
     public Carbon $date;
     public string $description;
     public string $merchant;
+    public string $payee;
+    public string $counterpartyName;
+    public string $notes;
 
     /**
      * Creates a transaction from a downloaded array.
@@ -46,15 +49,19 @@ class Transaction
      */
     public static function fromArray($array): self
     {
-        $object              = new self();
+        $object                   = new self();
         // mandatory fields:
-        $object->id          = $array['id'];
-        $object->account     = $array['accountId'];
-        $object->amount      = (string)$array['amount'];
-        $object->currency    = $array['currency'];
-        $object->date        = Carbon::parse($array['date'], config('app.timezone'));
-        $object->description = trim($array['description'] ?? '');
-        $object->merchant    = trim($array['merchant'] ?? '');
+        $object->id               = $array['id'];
+        $object->account          = $array['accountId'];
+        $object->amount           = (string)$array['amount'];
+        $object->currency         = $array['currency'];
+        $object->date             = Carbon::parse($array['date'], config('app.timezone'));
+        $object->description      = trim($array['description'] ?? '');
+        $object->merchant         = trim($array['merchant'] ?? '');
+        // optional fallback fields for description:
+        $object->payee            = trim($array['payee'] ?? '');
+        $object->counterpartyName = trim($array['counterparty_name'] ?? '');
+        $object->notes            = trim($array['notes'] ?? '');
 
         return $object;
     }
@@ -64,16 +71,20 @@ class Transaction
      */
     public static function fromLocalArray(array $array): self
     {
-        $object              = new self();
+        $object                   = new self();
 
         // mandatory fields:
-        $object->id          = $array['id'];
-        $object->account     = $array['account'];
-        $object->amount      = $array['amount'];
-        $object->currency    = $array['currency'];
-        $object->date        = $array['date'];
-        $object->description = $array['description'];
-        $object->merchant    = $array['merchant'];
+        $object->id               = $array['id'];
+        $object->account          = $array['account'];
+        $object->amount           = $array['amount'];
+        $object->currency         = $array['currency'];
+        $object->date             = $array['date'];
+        $object->description      = $array['description'];
+        $object->merchant         = $array['merchant'];
+        // optional fallback fields for description:
+        $object->payee            = $array['payee'] ?? '';
+        $object->counterpartyName = $array['counterparty_name'] ?? '';
+        $object->notes            = $array['notes'] ?? '';
 
         return $object;
     }
@@ -84,15 +95,22 @@ class Transaction
     }
 
     /**
-     * Return transaction description, which depends on the values in the object:
+     * Return transaction description, which depends on the values in the object.
+     * Implements fallback logic: description -> payee -> counterparty_name -> (empty description)
      */
     public function getDescription(): string
     {
-        if ('' === $this->description) {
-            return '(empty description)';
+        if ('' !== $this->description) {
+            return $this->description;
+        }
+        if ('' !== $this->payee) {
+            return $this->payee;
+        }
+        if ('' !== $this->counterpartyName) {
+            return $this->counterpartyName;
         }
 
-        return $this->description;
+        return '(empty description)';
     }
 
     public function getTransactionId(): string
@@ -113,19 +131,30 @@ class Transaction
     }
 
     /**
+     * Return transaction notes
+     */
+    public function getNotes(): string
+    {
+        return $this->notes;
+    }
+
+    /**
      * Call this "toLocalArray" because we want to confusion with "fromArray", which is really based
      * on Lunch Flow information. Likewise, there is also "fromLocalArray".
      */
     public function toLocalArray(): array
     {
         return [
-            'id'          => $this->id,
-            'account'     => $this->account,
-            'amount'      => $this->amount,
-            'currency'    => $this->currency,
-            'date'        => $this->date,
-            'description' => $this->description,
-            'merchant'    => $this->merchant,
+            'id'                => $this->id,
+            'account'           => $this->account,
+            'amount'            => $this->amount,
+            'currency'          => $this->currency,
+            'date'              => $this->date,
+            'description'       => $this->description,
+            'merchant'          => $this->merchant,
+            'payee'             => $this->payee,
+            'counterparty_name' => $this->counterpartyName,
+            'notes'             => $this->notes,
         ];
     }
 }
