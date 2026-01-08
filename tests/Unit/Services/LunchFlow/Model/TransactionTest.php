@@ -35,9 +35,10 @@ use Tests\TestCase;
 final class TransactionTest extends TestCase
 {
     /**
-     * Test that getDescription returns description when it exists.
+     * Test that getDescription prioritizes payee over description.
+     * This is the main use case: payee contains merchant name, description contains generic text.
      */
-    public function testGetDescriptionReturnsDescription(): void
+    public function testGetDescriptionPrioritizesPayeeOverDescription(): void
     {
         $transaction = Transaction::fromArray([
             'id'          => 'test-123',
@@ -45,12 +46,12 @@ final class TransactionTest extends TestCase
             'amount'      => '100.00',
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
-            'description' => 'Payment for groceries',
+            'description' => 'Platba kartou',
             'merchant'    => 'Supermarket',
             'payee'       => 'T-Mobile',
         ]);
 
-        $this->assertSame('Payment for groceries', $transaction->getDescription());
+        $this->assertSame('T-Mobile', $transaction->getDescription());
     }
 
     /**
@@ -73,27 +74,9 @@ final class TransactionTest extends TestCase
     }
 
     /**
-     * Test that getDescription returns payee when description is null.
+     * Test that getDescription returns counterparty_name when payee is empty.
      */
-    public function testGetDescriptionReturnsPayeeWhenDescriptionNull(): void
-    {
-        $transaction = Transaction::fromArray([
-            'id'        => 'test-123',
-            'accountId' => 1,
-            'amount'    => '100.00',
-            'currency'  => 'EUR',
-            'date'      => '2025-01-01',
-            'merchant'  => 'Supermarket',
-            'payee'     => 'Revolut',
-        ]);
-
-        $this->assertSame('Revolut', $transaction->getDescription());
-    }
-
-    /**
-     * Test that getDescription returns counterparty_name when description and payee are empty.
-     */
-    public function testGetDescriptionReturnsCounterpartyName(): void
+    public function testGetDescriptionReturnsCounterpartyNameWhenPayeeEmpty(): void
     {
         $transaction = Transaction::fromArray([
             'id'               => 'test-123',
@@ -101,7 +84,7 @@ final class TransactionTest extends TestCase
             'amount'           => '100.00',
             'currency'         => 'EUR',
             'date'             => '2025-01-01',
-            'description'      => '',
+            'description'      => 'Platba kartou',
             'payee'            => '',
             'counterparty_name' => 'John Doe',
             'merchant'         => 'Supermarket',
@@ -111,7 +94,25 @@ final class TransactionTest extends TestCase
     }
 
     /**
-     * Test that getDescription returns (empty description) when all fallbacks are empty.
+     * Test that getDescription returns description only when payee and counterparty_name are empty.
+     */
+    public function testGetDescriptionReturnsDescriptionAsFallback(): void
+    {
+        $transaction = Transaction::fromArray([
+            'id'          => 'test-123',
+            'accountId'   => 1,
+            'amount'      => '100.00',
+            'currency'    => 'EUR',
+            'date'        => '2025-01-01',
+            'description' => 'Platba kartou',
+            'merchant'    => 'Supermarket',
+        ]);
+
+        $this->assertSame('Platba kartou', $transaction->getDescription());
+    }
+
+    /**
+     * Test that getDescription returns (empty description) when all fields are empty.
      */
     public function testGetDescriptionReturnsEmptyDescription(): void
     {
@@ -128,9 +129,10 @@ final class TransactionTest extends TestCase
     }
 
     /**
-     * Test that getNotes returns notes field.
+     * Test that getNotes appends original description when payee is used.
+     * This preserves the original description text in the notes field.
      */
-    public function testGetNotesReturnsNotes(): void
+    public function testGetNotesAppendsDescriptionWhenPayeeUsed(): void
     {
         $transaction = Transaction::fromArray([
             'id'          => 'test-123',
@@ -138,12 +140,70 @@ final class TransactionTest extends TestCase
             'amount'      => '100.00',
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
-            'description' => 'Payment',
+            'description' => 'Platba kartou',
             'merchant'    => 'Supermarket',
-            'notes'       => 'Additional information about payment',
+            'payee'       => 'T-Mobile',
+            'notes'       => 'ID: 123',
         ]);
 
-        $this->assertSame('Additional information about payment', $transaction->getNotes());
+        $this->assertSame('ID: 123 | Platba kartou', $transaction->getNotes());
+    }
+
+    /**
+     * Test that getNotes returns only original notes when no description to append.
+     */
+    public function testGetNotesReturnsOnlyNotesWhenNoDescription(): void
+    {
+        $transaction = Transaction::fromArray([
+            'id'          => 'test-123',
+            'accountId'   => 1,
+            'amount'      => '100.00',
+            'currency'    => 'EUR',
+            'date'        => '2025-01-01',
+            'description' => '',
+            'merchant'    => 'Supermarket',
+            'payee'       => 'T-Mobile',
+            'notes'       => 'ID: 123',
+        ]);
+
+        $this->assertSame('ID: 123', $transaction->getNotes());
+    }
+
+    /**
+     * Test that getNotes returns only description when payee used but no original notes.
+     */
+    public function testGetNotesReturnsOnlyDescriptionWhenNoNotes(): void
+    {
+        $transaction = Transaction::fromArray([
+            'id'          => 'test-123',
+            'accountId'   => 1,
+            'amount'      => '100.00',
+            'currency'    => 'EUR',
+            'date'        => '2025-01-01',
+            'description' => 'Platba kartou',
+            'merchant'    => 'Supermarket',
+            'payee'       => 'T-Mobile',
+        ]);
+
+        $this->assertSame('Platba kartou', $transaction->getNotes());
+    }
+
+    /**
+     * Test that getNotes returns empty string when description is used as main description.
+     */
+    public function testGetNotesReturnsEmptyWhenDescriptionUsedAsMain(): void
+    {
+        $transaction = Transaction::fromArray([
+            'id'          => 'test-123',
+            'accountId'   => 1,
+            'amount'      => '100.00',
+            'currency'    => 'EUR',
+            'date'        => '2025-01-01',
+            'description' => 'Payment for groceries',
+            'merchant'    => 'Supermarket',
+        ]);
+
+        $this->assertSame('', $transaction->getNotes());
     }
 
     /**
@@ -185,7 +245,7 @@ final class TransactionTest extends TestCase
             'amount'           => '100.00',
             'currency'         => 'EUR',
             'date'             => '2025-01-01',
-            'description'      => '',
+            'description'      => 'Platba kartou',
             'merchant'         => 'Supermarket',
             'payee'            => 'T-Mobile',
             'counterparty_name' => 'John Doe',

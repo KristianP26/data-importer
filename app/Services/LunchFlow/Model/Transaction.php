@@ -96,18 +96,20 @@ class Transaction
 
     /**
      * Return transaction description, which depends on the values in the object.
-     * Implements fallback logic: description -> payee -> counterparty_name -> (empty description)
+     * Implements priority logic: payee -> counterparty_name -> description -> (empty description)
+     * Payee is prioritized because the description field often contains generic text
+     * (e.g., "Platba kartou", "Card payment") while payee contains the actual merchant name.
      */
     public function getDescription(): string
     {
-        if ('' !== $this->description) {
-            return $this->description;
-        }
         if ('' !== $this->payee) {
             return $this->payee;
         }
         if ('' !== $this->counterpartyName) {
             return $this->counterpartyName;
+        }
+        if ('' !== $this->description) {
+            return $this->description;
         }
 
         return '(empty description)';
@@ -131,11 +133,25 @@ class Transaction
     }
 
     /**
-     * Return transaction notes
+     * Return transaction notes.
+     * When payee or counterparty_name is used as description, the original description
+     * is appended to notes to preserve the information.
      */
     public function getNotes(): string
     {
-        return $this->notes;
+        $noteParts = [];
+
+        // Add existing notes first
+        if ('' !== $this->notes) {
+            $noteParts[] = $this->notes;
+        }
+
+        // If payee or counterparty_name is used as description, append original description to notes
+        if (('' !== $this->payee || '' !== $this->counterpartyName) && '' !== $this->description) {
+            $noteParts[] = $this->description;
+        }
+
+        return implode(' | ', $noteParts);
     }
 
     /**
