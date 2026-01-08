@@ -35,10 +35,10 @@ use Tests\TestCase;
 final class TransactionTest extends TestCase
 {
     /**
-     * Test that getDescription prioritizes payee over description.
-     * This is the main use case: payee contains merchant name, description contains generic text.
+     * Test that getDescription prioritizes merchant over all other fields.
+     * This is the main use case for LunchFlow: merchant contains the actual merchant name.
      */
-    public function testGetDescriptionPrioritizesPayeeOverDescription(): void
+    public function testGetDescriptionPrioritizesMerchantOverAll(): void
     {
         $transaction = Transaction::fromArray([
             'id'          => 'test-123',
@@ -47,17 +47,17 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => 'Platba kartou',
-            'merchant'    => 'Supermarket',
-            'payee'       => 'T-Mobile',
+            'merchant'    => 'T-Mobile',
+            'payee'       => 'Some Payee',
         ]);
 
         $this->assertSame('T-Mobile', $transaction->getDescription());
     }
 
     /**
-     * Test that getDescription returns payee when description is empty.
+     * Test that getDescription returns payee when merchant is empty.
      */
-    public function testGetDescriptionReturnsPayeeWhenDescriptionEmpty(): void
+    public function testGetDescriptionReturnsPayeeWhenMerchantEmpty(): void
     {
         $transaction = Transaction::fromArray([
             'id'          => 'test-123',
@@ -65,8 +65,8 @@ final class TransactionTest extends TestCase
             'amount'      => '100.00',
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
-            'description' => '',
-            'merchant'    => 'Supermarket',
+            'description' => 'Platba kartou',
+            'merchant'    => '',
             'payee'       => 'T-Mobile',
         ]);
 
@@ -74,9 +74,9 @@ final class TransactionTest extends TestCase
     }
 
     /**
-     * Test that getDescription returns counterparty_name when payee is empty.
+     * Test that getDescription returns counterparty_name when merchant and payee are empty.
      */
-    public function testGetDescriptionReturnsCounterpartyNameWhenPayeeEmpty(): void
+    public function testGetDescriptionReturnsCounterpartyNameWhenMerchantAndPayeeEmpty(): void
     {
         $transaction = Transaction::fromArray([
             'id'               => 'test-123',
@@ -85,16 +85,16 @@ final class TransactionTest extends TestCase
             'currency'         => 'EUR',
             'date'             => '2025-01-01',
             'description'      => 'Platba kartou',
+            'merchant'         => '',
             'payee'            => '',
             'counterparty_name' => 'John Doe',
-            'merchant'         => 'Supermarket',
         ]);
 
         $this->assertSame('John Doe', $transaction->getDescription());
     }
 
     /**
-     * Test that getDescription returns description only when payee and counterparty_name are empty.
+     * Test that getDescription returns description only when merchant, payee and counterparty_name are empty.
      */
     public function testGetDescriptionReturnsDescriptionAsFallback(): void
     {
@@ -105,7 +105,7 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => 'Platba kartou',
-            'merchant'    => 'Supermarket',
+            'merchant'    => '',
         ]);
 
         $this->assertSame('Platba kartou', $transaction->getDescription());
@@ -122,17 +122,17 @@ final class TransactionTest extends TestCase
             'amount'      => '100.00',
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
-            'merchant'    => 'Supermarket',
+            'merchant'    => '',
         ]);
 
         $this->assertSame('(empty description)', $transaction->getDescription());
     }
 
     /**
-     * Test that getNotes appends original description when payee is used.
+     * Test that getNotes appends original description when merchant is used.
      * This preserves the original description text in the notes field.
      */
-    public function testGetNotesAppendsDescriptionWhenPayeeUsed(): void
+    public function testGetNotesAppendsDescriptionWhenMerchantUsed(): void
     {
         $transaction = Transaction::fromArray([
             'id'          => 'test-123',
@@ -141,8 +141,7 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => 'Platba kartou',
-            'merchant'    => 'Supermarket',
-            'payee'       => 'T-Mobile',
+            'merchant'    => 'T-Mobile',
             'notes'       => 'ID: 123',
         ]);
 
@@ -161,8 +160,7 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => '',
-            'merchant'    => 'Supermarket',
-            'payee'       => 'T-Mobile',
+            'merchant'    => 'T-Mobile',
             'notes'       => 'ID: 123',
         ]);
 
@@ -170,7 +168,7 @@ final class TransactionTest extends TestCase
     }
 
     /**
-     * Test that getNotes returns only description when payee used but no original notes.
+     * Test that getNotes returns only description when merchant used but no original notes.
      */
     public function testGetNotesReturnsOnlyDescriptionWhenNoNotes(): void
     {
@@ -181,8 +179,7 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => 'Platba kartou',
-            'merchant'    => 'Supermarket',
-            'payee'       => 'T-Mobile',
+            'merchant'    => 'T-Mobile',
         ]);
 
         $this->assertSame('Platba kartou', $transaction->getNotes());
@@ -200,7 +197,7 @@ final class TransactionTest extends TestCase
             'currency'    => 'EUR',
             'date'        => '2025-01-01',
             'description' => 'Payment for groceries',
-            'merchant'    => 'Supermarket',
+            'merchant'    => '',
         ]);
 
         $this->assertSame('', $transaction->getNotes());
@@ -246,8 +243,8 @@ final class TransactionTest extends TestCase
             'currency'         => 'EUR',
             'date'             => '2025-01-01',
             'description'      => 'Platba kartou',
-            'merchant'         => 'Supermarket',
-            'payee'            => 'T-Mobile',
+            'merchant'         => 'T-Mobile',
+            'payee'            => 'Some Payee',
             'counterparty_name' => 'John Doe',
             'notes'            => 'Some notes',
         ]);
@@ -255,9 +252,10 @@ final class TransactionTest extends TestCase
         $localArray = $originalTransaction->toLocalArray();
         $restoredTransaction = Transaction::fromLocalArray($localArray);
 
-        $this->assertSame('T-Mobile', $restoredTransaction->payee);
+        $this->assertSame('Some Payee', $restoredTransaction->payee);
         $this->assertSame('John Doe', $restoredTransaction->counterpartyName);
         $this->assertSame('Some notes', $restoredTransaction->notes);
+        // merchant has highest priority
         $this->assertSame('T-Mobile', $restoredTransaction->getDescription());
     }
 }
