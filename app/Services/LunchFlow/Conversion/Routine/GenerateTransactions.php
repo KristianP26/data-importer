@@ -163,6 +163,7 @@ final class GenerateTransactions
             'category_id'   => null,
             'external_id'   => $entry->getTransactionId(),
             'bonus_tags'    => [],
+            'notes'         => $entry->getNotes(),
         ];
 
         if (1 === bccomp($entry->amount, '0')) {
